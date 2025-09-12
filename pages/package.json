@@ -1,0 +1,23 @@
+{
+  "name": "buling-imgbed-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "pages:dev": "nuxt generate && wrangler pages dev dist --port 3000",
+    "pages:deploy": "nuxt generate && wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "browser-image-compression": "^2.0.2",
+    "nprogress": "^0.2.0",
+    "nuxt": "^3.14.159",
+    "vue": "latest",
+    "vue-router": "latest"
+  },
+  "devDependencies": {
+    "wrangler": "^3.86.1"
+  }
+}
