@@ -2,9 +2,23 @@ name: 部署布灵图床前端到Cloudflare Pages
 
 on:
   push:
-    branches: [main]  
+    branches: [main]
+    # --- 添加开始 ---
+    # 只有当 /pages/ 目录下的文件或此工作流文件本身发生变化时，才触发
+    paths:
+      - 'pages/**'
+      - '.github/workflows/pages-deploy.yml'
+    # --- 添加结束 ---
+
   pull_request:
     branches: [main]
+    # --- 添加开始 ---
+    # 同样为拉取请求添加路径过滤
+    paths:
+      - 'pages/**'
+      - '.github/workflows/pages-deploy.yml'
+    # --- 添加结束 ---
+    
   workflow_dispatch:
     
 jobs:
@@ -23,6 +37,8 @@ jobs:
           node-version: '20'
           
       - name: 2.Install Dependencies
+        # 在 ./pages 目录下执行命令
+        working-directory: ./pages
         run: |
           echo "开始安装依赖..."
           npm install &>/dev/null || {
@@ -43,6 +59,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           echo "检查并创建 Pages 项目..."
+          # 如果项目已存在，此命令会失败，但 `|| true` 会确保工作流继续
           curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects" \
           -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
           -H "Content-Type: application/json" \
@@ -53,6 +70,8 @@ jobs:
           echo "✅ Pages 项目检查完成"
           
       - name: 4.Deploy to Cloudflare Pages
+        # 在 ./pages 目录下执行命令
+        working-directory: ./pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
