@@ -405,5 +405,48 @@ export const imageController = {
                 message: error.message  
             }, 500);  
         }  
+    },  
+ 
+    // 新增：重命名图片  
+    async renameImage(c) {  
+        try {  
+            const userId = c.get('jwtPayload').id;  
+            const { filename, originalFilename } = await c.req.json();  
+ 
+            if (!filename || !originalFilename || !originalFilename.trim()) {  
+                return c.json({  
+                    success: false,  
+                    message: '文件名不能为空'  
+                }, 400);  
+            }  
+ 
+            // 检查图片是否存在且属于当前用户  
+            const existingImage = await c.env.MY_DB.prepare(  
+                'SELECT id FROM images WHERE filename = ? AND user_id = ?'  
+            ).bind(filename, userId).first();  
+ 
+            if (!existingImage) {  
+                return c.json({  
+                    success: false,  
+                    message: '图片不存在或无权限'  
+                }, 404);  
+            }  
+ 
+            // 更新原始文件名  
+            await c.env.MY_DB.prepare(  
+                'UPDATE images SET original_filename = ?, updated_at = CURRENT_TIMESTAMP WHERE filename = ? AND user_id = ?'  
+            ).bind(originalFilename.trim(), filename, userId).run();  
+ 
+            return c.json({  
+                success: true,  
+                message: '重命名成功',  
+                data: { filename, originalFilename: originalFilename.trim() }  
+            });  
+        } catch (error) {  
+            return c.json({  
+                success: false,  
+                message: error.message  
+            }, 500);  
+        }  
     }  
 }
