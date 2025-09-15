@@ -398,7 +398,7 @@ const uploadAll = async () => {
         formData.append('imgfile', preview.file)  
         formData.append('description', preview.description || '')  
         formData.append('folderPath', preview.folderPath || '')  
-        formData.append('enableTimePath', enable  
+        formData.append('enableTimePath', enableTimePath.value) // 补全 enableTimePath.value 
   
 Wiki pages you might want to explore:  
 - [Pages (shorteners/buling-imgbed)](/wiki/shorteners/buling-imgbed#4.2)
