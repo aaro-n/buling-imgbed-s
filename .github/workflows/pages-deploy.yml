@@ -3,21 +3,15 @@ name: 部署布灵图床前端到Cloudflare Pages
 on:
   push:
     branches: [main]
-    # --- 添加开始 ---
-    # 只有当 /pages/ 目录下的文件或此工作流文件本身发生变化时，才触发
     paths:
       - 'pages/**'
       - '.github/workflows/pages-deploy.yml'
-    # --- 添加结束 ---
 
   pull_request:
     branches: [main]
-    # --- 添加开始 ---
-    # 同样为拉取请求添加路径过滤
     paths:
       - 'pages/**'
       - '.github/workflows/pages-deploy.yml'
-    # --- 添加结束 ---
     
   workflow_dispatch:
     
@@ -37,20 +31,21 @@ jobs:
           node-version: '20'
           
       - name: 2.Install Dependencies
-        # 在 ./pages 目录下执行命令
         working-directory: ./pages
         run: |
           echo "开始安装依赖..."
-          npm install &>/dev/null || {
+          # 移除 &>/dev/null 才能看到 npm install 的错误
+          npm install || { 
             echo "❌ 依赖安装失败"
             exit 1
           }
-          npm install -g wrangler &>/dev/null || {
+          # 移除 &>/dev/null 才能看到 wrangler 安装的错误
+          npm install -g wrangler || { 
             echo "❌ wrangler 安装失败"
             exit 1
           }
-          which wrangler  # 显示 wrangler 的安装位置
-          wrangler --version  # 显示 wrangler 版本
+          which wrangler
+          wrangler --version
           echo "✅ 依赖安装成功"
         
       - name: 3.Create Cloudflare Pages Project
@@ -59,18 +54,29 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           echo "检查并创建 Pages 项目..."
-          # 如果项目已存在，此命令会失败，但 `|| true` 会确保工作流继续
-          curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects" \
+          # 移除 > /dev/null 2>&1 才能看到 curl 的错误
+          CURL_OUTPUT=$(curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects" \
           -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
           -H "Content-Type: application/json" \
           --data '{
             "name": "buling-imgbed-frontend",
             "production_branch": "main"
-          }' > /dev/null 2>&1 || true
-          echo "✅ Pages 项目检查完成"
+          }' 2>&1)
           
+          # 检查 curl 命令是否成功（尽管可能因为项目已存在而失败，但至少能看到详细信息）
+          if [ $? -ne 0 ]; then
+            if echo "$CURL_OUTPUT" | grep -q "code\": 10010"; then # 10010 is "project already exists"
+              echo "Pages 项目 'buling-imgbed-frontend' 已存在，跳过创建。"
+            else
+              echo "❌ Pages 项目创建/检查失败！"
+              echo "$CURL_OUTPUT" # 打印 curl 的详细错误信息
+              exit 1
+            fi
+          else
+            echo "✅ Pages 项目 'buling-imgbed-frontend' 检查完成或创建成功。"
+          fi
+
       - name: 4.Deploy to Cloudflare Pages
-        # 在 ./pages 目录下执行命令
         working-directory: ./pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -78,8 +84,10 @@ jobs:
           NUXT_PUBLIC_API_BASE: ${{ secrets.NUXT_PUBLIC_API_BASE }}
         run: |
           echo "开始部署到 Cloudflare Pages..."
-          npm run pages:deploy &>/dev/null || {
-            echo "❌ 部署失败"
-            exit 1
-          }
+          # !!! 移除 &>/dev/null，这是最关键的修改 !!!
+          npm run pages:deploy # 让所有输出都显示在日志中
+          
+          # 如果命令成功，后续行会执行；如果失败，脚本会在此处终止
+          # 因为 bash 的默认行为是遇到非零退出码的命令就退出脚本
           echo "✅ 部署成功"
+
