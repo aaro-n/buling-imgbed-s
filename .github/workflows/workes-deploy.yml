@@ -21,7 +21,27 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4                                                                                                      
-                                                                                                                                       
+
+      # --- ↓↓↓ 添加这个调试步骤 ↓↓↓ ---
+      - name: Debug - List repository contents and verify workers directory
+        run: |
+          echo "当前工作目录 (Current working directory):"
+          pwd
+          echo "仓库根目录内容 (Listing contents of repository root):"
+          ls -laF .
+          echo ""
+          echo "尝试列出 'workers' 目录的内容 (Attempting to list 'workers' directory contents):"
+          # 注意：ls -laF workers/ 如果目录不存在会失败，但会显示错误信息
+          ls -laF workers/ || echo "❌ 'workers' 目录不存在或无法访问！"
+          echo ""
+          echo "检查 'workers' 目录的详细信息 (Checking details of 'workers' directory):"
+          # 这将显示 workers 目录本身的权限和类型，即使它不存在，也会给出明确信息
+          ls -ld workers/ || echo "❌ 'workers' 目录本身不存在！"
+          echo ""
+          echo "递归列出仓库所有内容 (Recursive listing of all repository contents):"
+          ls -RF .
+      # --- ↑↑↑ 添加这个调试步骤 ↑↑↑ ---          
+          
       - name: 1. Setup Node.js                                                                                                          
         uses: actions/setup-node@v4                                                                                                    
         with:                                                                                                                          
