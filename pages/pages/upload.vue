@@ -385,7 +385,10 @@ const uploadAll = async () => {
   
     for (let i = 0; i < previewImages.value.length; i++) {  
       const preview = previewImages.value[i]  
+      // 如果之前上传失败，重置状态  
       preview.uploading = true  
+      preview.progress = 0  
+      preview.error = '' // 清除单个图片的错误状态  
   
       const progressInterval = setInterval(() => {  
         if (preview.progress < 90) {  
@@ -399,6 +402,93 @@ const uploadAll = async () => {
         formData.append('description', preview.description || '')  
         formData.append('folderPath', preview.folderPath || '')  
         formData.append('enableTimePath', enableTimePath.value) // 补全 enableTimePath.value 
+        
+        const response = await api.uploadImage(formData, (event) => {
+          if (event.lengthComputable) {
+            preview.progress = Math.min(99, Math.round((event.loaded / event.total) * 100));
+          }
+        })
+        
+        preview.progress = 100;
+        uploadedLinks.value.push({
+          id: response.data.id,
+          filename: response.data.filename,
+          direct: response.data.direct,
+          bbcode: `[img]${response.data.direct}[/img]`,
+          markdown: `![${response.data.filename}](${response.data.direct})`,
+          html: `<img src="${response.data.direct}" alt="${response.data.filename}">`
+        })
+        toast.showToast(`图片 ${preview.file.name} 上传成功`, 'success')
+
+      } catch (uploadError) {  
+        console.error('上传图片失败:', uploadError)  
+        preview.error = '上传失败'  
+        toast.showToast(`上传 ${preview.file.name} 失败`, 'error')  
+      } finally {  
+        clearInterval(progressInterval)  
+        preview.uploading = false  
+      }  
+    } // for 循环结束  
   
-Wiki pages you might want to explore:  
-- [Pages (shorteners/buling-imgbed)](/wiki/shorteners/buling-imgbed#4.2)
+    toast.showToast('所有图片上传完成', 'success')  
+  
+  } catch (err) {  
+    error.value = '上传过程中发生未知错误'  
+    toast.showToast('上传过程中发生未知错误', 'error')  
+  } finally {  
+    isUploading.value = false  
+  }  
+}  
+
+// 辅助函数：格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// 辅助函数：根据类型获取链接
+const getLinkByType = (link, type) => {
+  return link[type] || link.direct; // 默认返回直链
+};
+
+// 辅助函数：复制到剪贴板
+const copyToClipboard = async (text, elementId) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.showToast('链接已复制', 'success');
+    // 可选：添加视觉反馈
+    const inputElement = document.getElementById(elementId);
+    if (inputElement) {
+      inputElement.select();
+      inputElement.focus();
+    }
+  } catch (err) {
+    console.error('复制失败:', err);
+    toast.showToast('复制失败', 'error');
+  }
+};
+
+// 辅助函数：复制所有链接
+const copyAllLinks = async () => {
+  const allLinks = uploadedLinks.value.map(link => getLinkByType(link, activeTab.value)).join('\n');
+  if (allLinks) {
+    await copyToClipboard(allLinks, 'all-links-input-placeholder'); // 'all-links-input-placeholder' 仅为占位符
+  } else {
+    toast.showToast('没有链接可复制', 'warning');
+  }
+};
+
+// 页面加载时获取文件夹列表
+onMounted(() => {
+  fetchFolders();
+});
+
+// 在组件卸载时清理定时器 (虽然这里没有直接的全局定时器，但这是个好习惯)
+onUnmounted(() => {
+  // if (someGlobalTimer) clearInterval(someGlobalTimer); // 示例
+});
+
+</script>  
