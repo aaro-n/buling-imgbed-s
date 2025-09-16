@@ -1,0 +1,25 @@
+:root {
+  /* 亮色主题 */
+  --primary-color: #3498db;
+  --background-color: #ffffff;
+  --text-color: #333333;
+  --border-color: #8dc6ff;
+  --upload-hover-background: #f4f4f5;
+  --card-background: #f9fafb;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --card-background-rgb: 255, 255, 255; 
+  --primary-rgb: 124, 58, 237;
+}
+
+/* 暗色主题 */
+[data-theme="dark"] {
+  --primary-color: #75b3f7;
+  --background-color:#09090b;
+  --card-background:#242428;
+  --upload-hover-background: #09090b;
+  --text-color: #d4d7d6;
+  --border-color: #404040;
+  --card-background-rgb: 30, 30, 30;
+  --shadow-color: rgba(255, 255, 255, 0.1);
+  --primary-rgb: 124, 58, 237; 
+} 

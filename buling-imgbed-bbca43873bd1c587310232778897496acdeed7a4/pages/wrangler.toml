@@ -1,0 +1,7 @@
+name = "buling-imgbed-frontend"
+compatibility_date = "2024-06-06"
+pages_build_output_dir = "dist"
+
+[vars]
+NUXT_PUBLIC_API_BASE = "你的API地址"
+
