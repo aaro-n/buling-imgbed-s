@@ -1,11 +1,12 @@
-import {  decode, sign, verify } from 'hono/jwt'
+import { decode, sign, verify } from 'hono/jwt'
 import { signToken } from '../utils/jwt'
 import { hash, compare } from '../utils/hash'
-
+ 
 const authController = {
   async register(c) {
     try {
       const { username, password } = c.get('validatedBody')
+      console.log('注册请求:', { username, password: '***' })
       
       // 检查用户是否已存在
       const { results: existingUser } = await c.env.MY_DB.prepare(
@@ -46,21 +47,25 @@ const authController = {
         token
       })
     } catch (error) {
+      console.error('注册错误:', error)
       return c.json({ 
         success: false, 
         message: error.message 
       }, 500)
     }
   },
-
+ 
   async login(c) {
     try {
       const { username, password } = c.get('validatedBody')
+      console.log('登录请求:', { username, password: '***' })
       
       // 查找用户
       const { results } = await c.env.MY_DB.prepare(
         'SELECT * FROM users WHERE username = ?'
       ).bind(username).all()
+      
+      console.log('查询结果:', results.length, '条记录')
       
       if (results.length === 0) {
         return c.json({ 
@@ -72,6 +77,7 @@ const authController = {
       // 验证密码
       const user = results[0]
       const isValidPassword = await compare(password, user.password)
+      console.log('密码验证结果:', isValidPassword)
       
       if (!isValidPassword) {
         return c.json({ 
@@ -93,12 +99,15 @@ const authController = {
         c.env
       )
       
+      console.log('登录成功，生成token')
+      
       return c.json({ 
         success: true,
         message: '登录成功',
         token
       })
     } catch (error) {
+      console.error('登录错误:', error)
       return c.json({ 
         success: false, 
         message: error.message 
@@ -106,5 +115,5 @@ const authController = {
     }
   }
 }
-
-export { authController } 
+ 
+export { authController }
