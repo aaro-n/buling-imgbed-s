@@ -58,7 +58,7 @@ export default function useApi() {
     // 上传图片
     async uploadImage(formData) {
       const token = localStorage.getItem('token')
-      const response = await $fetch(`${config.public.apiBase}/images/upload`, {
+      const response = await $fetch(`${config.public.apiBase}/image/upload`, {
         method: 'POST',
         body: formData,
         headers: {
