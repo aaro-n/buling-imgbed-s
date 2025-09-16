@@ -5,7 +5,7 @@ export default function useApi() {
   const user = useState('user', () => null)
  
   const apiCall = async (endpoint, options = {}) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('buling-token')  // 统一使用 buling-token
     
     const defaultOptions = {
       headers: {
@@ -31,7 +31,7 @@ export default function useApi() {
   }
  
   return {
-    // 登录
+    // 登录 - 修复返回值处理
     async login(username, password) {
       const response = await apiCall('/auth/login', {
         method: 'POST',
@@ -39,11 +39,23 @@ export default function useApi() {
       })
       
       if (response.success) {
-        localStorage.setItem('token', response.data.token)
-        user.value = response.data.user
+        localStorage.setItem('buling-token', response.token)  // 修复：使用 response.token
+        // 从token中解析用户信息
+        try {
+          const payload = JSON.parse(atob(response.token.split('.')[1]))
+          user.value = {
+            chat_id: payload.chat_id,
+            username: payload.username,
+            r2_custom_url: payload.r2_custom_url,
+            enable_baidu_cdn: payload.enable_baidu_cdn,
+            enable_image_optimization: payload.enable_image_optimization,
+          }
+        } catch (error) {
+          console.error('解析用户信息失败:', error)
+        }
       }
       
-      return response.success
+      return response  // 修复：返回完整响应对象
     },
  
     // 获取用户信息
@@ -57,7 +69,7 @@ export default function useApi() {
  
     // 上传图片
     async uploadImage(formData) {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('buling-token')  // 统一使用 buling-token
       const response = await $fetch(`${config.public.apiBase}/image/upload`, {
         method: 'POST',
         body: formData,
