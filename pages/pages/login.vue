@@ -43,6 +43,7 @@ const router = useRouter()
 
 
 const handleLogin = async () => {
+  console.log('formData.value:', formData.value) // 添加这行
   try {
     loading.value = true
     error.value = ''
