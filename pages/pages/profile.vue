@@ -114,7 +114,7 @@
           </div>  
         </div>  
   
-        <!-- 新增：时间路径设置 -->  
+        <!-- 时间路径设置 -->
         <div class="form-group">  
           <label for="enable_time_path">启用时间路径 (YYYY/MM/DD/)</label>  
           <div class="input-group">  
@@ -180,7 +180,7 @@ const editingField = ref({
   r2_custom_url: false,  
   enable_baidu_cdn: false,  
   enable_image_optimization: false,  
-  enable_time_path: false, // 新增  
+  enable_time_path: false,  
   password: false  
 })  
   
@@ -191,7 +191,7 @@ const tempValues = ref({
   r2_custom_url: '',  
   enable_baidu_cdn: '',  
   enable_image_optimization: '',  
-  enable_time_path: '', // 新增  
+  enable_time_path: '',  
   password: '******'  
 })  
   
@@ -204,7 +204,7 @@ watch(() => user.value, (newUser) => {
       r2_custom_url: newUser.r2_custom_url || '',  
       enable_baidu_cdn: newUser.enable_baidu_cdn ?? 0,  
       enable_image_optimization: newUser.enable_image_optimization ?? 0,  
-      enable_time_path: newUser.enable_time_path ?? 0, // 新增  
+      enable_time_path: newUser.enable_time_path ?? 0,  
       password: '******'  
     }  
   }  
@@ -300,33 +300,27 @@ h3 {
   color: var(--text-color);  
 }  
   
+.loading {  
+  text-align: center;  
+  padding: 2rem;  
+  color: var(--text-color-secondary);  
+}  
+  
 .profile-form {  
-  display: flex;  
-  flex-direction: column;  
+  display: grid;  
   gap: 1.5rem;  
 }  
   
 .form-group {  
-  display: flex;  
-  flex-direction: column;  
-  gap: 0.5rem;  
+  display: grid;  
+  grid-template-columns: 200px 1fr;  
+  gap: 1rem;  
+  align-items: center;  
 }  
   
-label {  
+.form-group label {  
+  font-weight: 500;  
   color: var(--text-color);  
-}  
-  
-input {  
-  padding: 0.5rem;  
-  border: 1px solid var(--border-color);  
-  border-radius: 4px;  
-  background-color: var(--background-color);  
-  color: var(--text-color);  
-}  
-  
-input:disabled {  
-  background-color: var(--card-background);  
-  cursor: not-allowed;  
 }  
   
 .input-group {  
@@ -335,61 +329,70 @@ input:disabled {
   align-items: center;  
 }  
   
-.input-group input,  
-.input-group select {  
+.form-group input,  
+.form-group select {  
   flex: 1;  
+  padding: 0.75rem;  
+  border: 1px solid var(--border-color);  
+  border-radius: 0.375rem;  
+  background: var(--bg-color);  
+  color: var(--text-color);  
+  font-size: 0.875rem;  
+}  
+  
+.form-group input:focus,  
+.form-group select:focus {  
+  outline: none;  
+  border-color: var(--primary-color);  
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);  
+}  
+  
+.form-group input:disabled,  
+.form-group select:disabled {  
+  background-color: var(--bg-color-secondary);  
+  cursor: not-allowed;  
+  opacity: 0.6;  
 }  
   
 .edit-btn {  
   padding: 0.5rem 1rem;  
   border: none;  
-  border-radius: 4px;  
+  border-radius: 0.375rem;  
   cursor: pointer;  
-  font-size: 0.9rem;  
+  font-size: 0.875rem;  
+  font-weight: 500;  
+  transition: all 0.2s;  
 }  
   
 .edit-btn:not(.confirm):not(.cancel) {  
-  background-color: var(--primary-color);  
+  background: var(--primary-color);  
   color: white;  
+}  
+  
+.edit-btn:not(.confirm):not(.cancel):hover {  
+  background: var(--primary-color-hover);  
 }  
   
 .edit-btn.confirm {  
-  background-color: #10b981;  
-  /* 绿色 */  
+  background: var(--success-color);  
   color: white;  
+}  
+  
+.edit-btn.confirm:hover {  
+  background: var(--success-color-hover);  
 }  
   
 .edit-btn.cancel {  
-  background-color: #ef4444;  
-  /* 红色 */  
+  background: var(--danger-color);  
   color: white;  
 }  
   
-.edit-btn:hover {  
-  opacity: 0.9;  
-}  
-  
-select {  
-  padding: 0.5rem;  
-  border: 1px solid var(--border-color);  
-  border-radius: 4px;  
-  background-color: var(--background-color);  
-  color: var(--text-color);  
-}  
-  
-select:disabled {  
-  background-color: var(--card-background);  
-  cursor: not-allowed;  
-}  
-  
-@media (max-width: 768px) {  
- .edit-btn {  
-    padding: 0.5rem 0.6rem;  
-  }  
+.edit-btn.cancel:hover {  
+  background: var(--danger-color-hover);  
 }  
   
 .edit-btn:disabled {  
-  opacity: 0.6;  
+  opacity: 0.5;  
   cursor: not-allowed;  
 }  
 </style>
