@@ -1,6 +1,28 @@
 import { isValidImageType } from '../utils/imageUtils';  
   
 export const imageController = {  
+    // 获取用户R2自定义URL的辅助函数
+    async getUserR2CustomUrl(c, userId) {
+        try {
+            const { results } = await c.env.MY_DB.prepare(
+                'SELECT r2_custom_url FROM users WHERE id = ?'
+            ).bind(userId).all();
+            
+            if (results.length > 0 && results[0].r2_custom_url) {
+                // 确保URL以/结尾，如果没有则添加
+                let customUrl = results[0].r2_custom_url;
+                if (!customUrl.endsWith('/')) {
+                    customUrl += '/';
+                }
+                return customUrl;
+            }
+            return null;
+        } catch (error) {
+            console.error('获取用户R2自定义URL失败:', error);
+            return null;
+        }
+    },
+ 
     async uploadImage(c) {  
         try {  
             const userId = c.get('jwtPayload').id;  
@@ -74,15 +96,26 @@ export const imageController = {
                 httpMetadata: { contentType: imgfile.type }  
             });  
   
+            // 获取用户的R2自定义URL
+            const customR2Url = await this.getUserR2CustomUrl(c, userId);
+            const r2BaseUrl = customR2Url || 'https://buling-imgbed-r2.r2.dev/';
+            const fullUrl = `${r2BaseUrl}${storageKey}`;
+            
             return c.json({  
                 success: true,  
                 message: '图片上传成功',  
                 data: {  
+                    id: filename,  
                     filename: storageKey,  
                     originalFilename,  
                     description,  
                     folderPath,  
-                    userId  
+                    userId,
+                    // 使用用户的自定义R2链接或默认链接
+                    direct: fullUrl,
+                    bbcode: `[img]${fullUrl}[/img]`,
+                    markdown: `![${originalFilename}](${fullUrl})`,
+                    html: `<img src="${fullUrl}" alt="${originalFilename}">`
                 }  
             });  
         } catch (error) {  
@@ -155,31 +188,59 @@ export const imageController = {
                 prefix  
             }  
   
-            const list = await c.env.MY_BUCKET.list(options)  
-            const images = list.objects.map((obj, index) => ({  
-                index: index + 1,  
-                filename: obj.key,  
-                size: obj.size / 1024 + 'KB',  
-                rawSize: obj.size,  
-                uploaded: obj.uploaded,  
-                type: obj.httpMetadata?.contentType,  
-                etag: obj.etag,  
-                httpEtag: obj.httpEtag,  
-                checksums: {  
-                    md5: obj.checksums?.md5,  
-                    sha1: obj.checksums?.sha1,  
-                    sha256: obj.checksums?.sha256  
-                },  
-                customMetadata: obj.customMetadata || {},  
-                version: obj.version,  
-                lastModified: new Date(obj.uploaded).toLocaleString(),  
-                cursor: obj.cursor,  
-                prefix: obj.prefix,  
-                delimiter: obj.delimiter,  
-                range: obj.range,  
-                writeHttpMetadata: obj.writeHttpMetadata,  
-                httpMetadataJSON: JSON.stringify(obj.httpMetadata || {})  
-            }))  
+            const list = await c.env.MY_BUCKET.list(options)
+            
+            // 获取用户ID（如果通过认证）
+            let userId = null;
+            try {
+                const jwtPayload = c.get('jwtPayload');
+                if (jwtPayload) {
+                    userId = jwtPayload.id;
+                }
+            } catch (error) {
+                // 没有认证信息，使用默认链接
+            }
+            
+            // 获取用户的R2自定义URL
+            let customR2Url = null;
+            if (userId) {
+                customR2Url = await this.getUserR2CustomUrl(c, userId);
+            }
+            const r2BaseUrl = customR2Url || 'https://buling-imgbed-r2.r2.dev/';
+            
+            const images = list.objects.map((obj, index) => {  
+                const fullUrl = `${r2BaseUrl}${obj.key}`;
+                return {  
+                    index: index + 1,  
+                    filename: obj.key,  
+                    size: obj.size / 1024 + 'KB',  
+                    rawSize: obj.size,  
+                    uploaded: obj.uploaded,  
+                    type: obj.httpMetadata?.contentType,  
+                    etag: obj.etag,  
+                    httpEtag: obj.httpEtag,  
+                    checksums: {  
+                        md5: obj.checksums?.md5,  
+                        sha1: obj.checksums?.sha1,  
+                        sha256: obj.checksums?.sha256  
+                    },  
+                    customMetadata: obj.customMetadata || {},  
+                    version: obj.version,  
+                    lastModified: new Date(obj.uploaded).toLocaleString(),  
+                    cursor: obj.cursor,  
+                    prefix: obj.prefix,  
+                    delimiter: obj.delimiter,  
+                    range: obj.range,  
+                    writeHttpMetadata: obj.writeHttpMetadata,  
+                    httpMetadataJSON: JSON.stringify(obj.httpMetadata || {}),
+                    // 使用用户的自定义R2链接或默认链接
+                    url: fullUrl,
+                    direct: fullUrl,
+                    bbcode: `[img]${fullUrl}[/img]`,
+                    markdown: `![${obj.key}](${fullUrl})`,
+                    html: `<img src="${fullUrl}" alt="${obj.key}">`
+                };
+            })  
   
             return c.json({  
                 success: true,  
@@ -204,6 +265,10 @@ export const imageController = {
             const userId = c.get('jwtPayload').id;  
             const { page = 1, pageSize = 10, search = '', folderPath = '' } = await c.req.json();    
             const offset = (page - 1) * pageSize;  
+  
+            // 获取用户的R2自定义URL
+            const customR2Url = await this.getUserR2CustomUrl(c, userId);
+            const r2BaseUrl = customR2Url || 'https://buling-imgbed-r2.r2.dev/';
   
             // 构建搜索条件  
             let whereClause = 'WHERE user_id = ?';  
@@ -234,17 +299,25 @@ export const imageController = {
             const { results } = await c.env.MY_DB.prepare(listQuery)  
                 .bind(...params, pageSize, offset).all();  
   
-            const imageList = results.map(img => ({  
-                filename: img.filename,  
-                originalFilename: img.original_filename,  
-                description: img.description,  
-                folderPath: img.folder_path,  
-                fullPath: img.full_path,  
-                fileSize: img.file_size,  
-                mimeType: img.mime_type,  
-                url: img.full_path || img.filename,  
-                created_at: img.created_at  
-            }));  
+            const imageList = results.map(img => {  
+                const fullUrl = `${r2BaseUrl}${img.full_path || img.filename}`;
+                return {  
+                    filename: img.filename,  
+                    originalFilename: img.original_filename,  
+                    description: img.description,  
+                    folderPath: img.folder_path,  
+                    fullPath: img.full_path,  
+                    fileSize: img.file_size,  
+                    mimeType: img.mime_type,  
+                    url: img.full_path || img.filename,
+                    // 使用用户的自定义R2链接或默认链接
+                    direct: fullUrl,
+                    bbcode: `[img]${fullUrl}[/img]`,
+                    markdown: `![${img.original_filename || img.filename}](${fullUrl})`,
+                    html: `<img src="${fullUrl}" alt="${img.originalFilename || img.filename}">`,
+                    created_at: img.created_at  
+                };
+            });  
   
             return c.json({  
                 success: true,  
