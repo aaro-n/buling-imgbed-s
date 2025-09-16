@@ -9,6 +9,9 @@ imageRoutes.use('*', (c, next) => authMiddleware(c.env)(c, next))
 imageRoutes.post('/upload', imageController.uploadImage)
 imageRoutes.delete('/delete', imageController.deleteImages)
 imageRoutes.post('/list', imageController.listImages)
+imageRoutes.get('/folders', imageController.getFolders)
+imageRoutes.post('/create-folder', imageController.createFolder)
+imageRoutes.post('/move-images', imageController.moveImages)
  
 // 新增：更新图片备注路由
 imageRoutes.post('/update-description', imageController.updateImageDescription)

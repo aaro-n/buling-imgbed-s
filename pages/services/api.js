@@ -1,112 +1,131 @@
 import { toast } from '~/composables/useToast'
  
-const useApi = () => {
+export default function useApi() {
   const config = useRuntimeConfig()
-  const { token, logout } = useAuth()
-  const router = useRouter()
+  const user = useState('user', () => null)
  
-  const baseHeaders = {
-    'Content-Type': 'application/json',
-  }
- 
-  const getAuthHeaders = () => ({
-    ...baseHeaders,
-    'Authorization': `Bearer ${token.value}`
-  })
- 
-  // 添加统一的响应处理函数
-  const handleResponse = async (response) => {
-    if (response.status === 401) {
-      logout()
-      toast.showToast('登录已过期，请重新登录', 'error')
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
-      return null
+  const apiCall = async (endpoint, options = {}) => {
+    const token = localStorage.getItem('token')
+    
+    const defaultOptions = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      }
     }
-    return response.json()
+ 
+    try {
+      const response = await $fetch(`${config.public.apiBase}${endpoint}`, {
+        ...defaultOptions,
+        ...options,
+        headers: {
+          ...defaultOptions.headers,
+          ...options.headers
+        }
+      })
+      return response
+    } catch (error) {
+      console.error('API调用失败:', error)
+      throw error
+    }
   }
  
   return {
-    // 认证相关
-    async login(credentials) {
-      const response = await fetch(`${config.public.apiBase}/auth/login`, {
+    // 登录
+    async login(username, password) {
+      const response = await apiCall('/auth/login', {
         method: 'POST',
-        headers: baseHeaders,
-        body: JSON.stringify(credentials)
+        body: JSON.stringify({ username, password })
       })
-      return response.json()
+      
+      if (response.success) {
+        localStorage.setItem('token', response.data.token)
+        user.value = response.data.user
+      }
+      
+      return response.success
     },
  
-    // 列出所有图片（支持搜索）
-    async getImages(body) {
-      const response = await fetch(`${config.public.apiBase}/image/list`, {
-        headers: getAuthHeaders(),
-        method: 'POST',
-        body: JSON.stringify(body)
-      })
-      return handleResponse(response)
+    // 获取用户信息
+    async getUserInfo() {
+      const response = await apiCall('/auth/me')
+      if (response.success) {
+        user.value = response.data
+      }
+      return response.success
     },
  
+    // 上传图片
+    async uploadImage(formData) {
+      const token = localStorage.getItem('token')
+      const response = await $fetch(`${config.public.apiBase}/images/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      })
+      return response.success
+    },
+ 
+    // 获取图片列表
+    async getImages(params = {}) {
+      const response = await apiCall('/images/list', {
+        method: 'POST',
+        body: JSON.stringify(params)
+      })
+      return response
+    },
+ 
+    // 删除图片
     async deleteImage(files) {
-      const response = await fetch(`${config.public.apiBase}/image/delete`, {
+      const response = await apiCall('/images/delete', {
         method: 'DELETE',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ files })
       })
-      return handleResponse(response)
+      return response.success
     },
  
-    async uploadImage(formData) {
-      const response = await fetch(`${config.public.apiBase}/image/upload`, {
+    // 获取文件夹列表
+    async getFolders() {
+      const response = await apiCall('/images/folders')
+      return response.success ? response.data : []
+    },
+ 
+    // 创建文件夹
+    async createFolder(name) {
+      const response = await apiCall('/images/create-folder', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token.value}`
-        },
-        body: formData
+        body: JSON.stringify({ name })
       })
-      return handleResponse(response)
+      return response.success
     },
  
-    // 新增：更新图片备注
-    async updateImageDescription(filename, description) {
-      const response = await fetch(`${config.public.apiBase}/image/update-description`, {
+    // 移动图片到文件夹
+    async moveImages(files, targetFolder) {
+      const response = await apiCall('/images/move-images', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        body: JSON.stringify({ files, targetFolder })
+      })
+      return response.success
+    },
+ 
+    // 更新图片备注
+    async updateImageDescription(filename, description) {
+      const response = await apiCall('/images/update-description', {
+        method: 'POST',
         body: JSON.stringify({ filename, description })
       })
-      const result = await handleResponse(response)
-      return result && result.success
+      return response.success
     },
  
-    // 新增：重命名图片
-    async renameImage(filename, newOriginalFilename) {
-      const response = await fetch(`${config.public.apiBase}/image/rename`, {
+    // 重命名图片
+    async renameImage(filename, originalFilename) {
+      const response = await apiCall('/images/rename', {
         method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ filename, originalFilename: newOriginalFilename })
+        body: JSON.stringify({ filename, originalFilename })
       })
-      const result = await handleResponse(response)
-      return result && result.success
-    },
- 
-    // 个人资料相关
-    async getProfile() {
-      const response = await fetch(`${config.public.apiBase}/user/profile`, {
-        headers: getAuthHeaders()
-      })
-      return handleResponse(response)
-    },
- 
-    async updateProfile(profileData) {
-      const response = await fetch(`${config.public.apiBase}/user/update`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(profileData)
-      })
-      return handleResponse(response)
+      return response.success
     }
   }
 }
- 
-export default useApi
