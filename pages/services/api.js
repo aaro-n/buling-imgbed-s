@@ -1,5 +1,5 @@
 import { toast } from '~/composables/useToast'
- 
+
 const useApi = () => {
   const config = useRuntimeConfig()
   const { token, logout } = useAuth()
@@ -8,12 +8,12 @@ const useApi = () => {
   const baseHeaders = {
     'Content-Type': 'application/json',
   }
- 
+
   const getAuthHeaders = () => ({
     ...baseHeaders,
     'Authorization': `Bearer ${token.value}`
   })
- 
+
   // 添加统一的响应处理函数
   const handleResponse = async (response) => {
     if (response.status === 401) {
@@ -26,7 +26,7 @@ const useApi = () => {
     }
     return response.json()
   }
- 
+
   return {
     // 认证相关
     async login(credentials) {
@@ -37,8 +37,8 @@ const useApi = () => {
       })
       return response.json()
     },
- 
-    // 列出所有图片（支持搜索）
+
+    // 列出所有图片
     async getImages(body) {
       const response = await fetch(`${config.public.apiBase}/image/list`, {
         headers: getAuthHeaders(),
@@ -47,7 +47,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
- 
+
     async deleteImage(files) {
       const response = await fetch(`${config.public.apiBase}/image/delete`, {
         method: 'DELETE',
@@ -56,7 +56,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
- 
+
     async uploadImage(formData) {
       const response = await fetch(`${config.public.apiBase}/image/upload`, {
         method: 'POST',
@@ -67,29 +67,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
- 
-    // 新增：更新图片备注
-    async updateImageDescription(filename, description) {
-      const response = await fetch(`${config.public.apiBase}/image/update-description`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ filename, description })
-      })
-      const result = await handleResponse(response)
-      return result && result.success
-    },
- 
-    // 新增：重命名图片
-    async renameImage(filename, newOriginalFilename) {
-      const response = await fetch(`${config.public.apiBase}/image/rename`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ filename, originalFilename: newOriginalFilename })
-      })
-      const result = await handleResponse(response)
-      return result && result.success
-    },
- 
+
     // 个人资料相关
     async getProfile() {
       const response = await fetch(`${config.public.apiBase}/user/profile`, {
@@ -97,7 +75,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
- 
+
     async updateProfile(profileData) {
       const response = await fetch(`${config.public.apiBase}/user/update`, {
         method: 'PUT',
@@ -108,5 +86,5 @@ const useApi = () => {
     }
   }
 }
- 
-export default useApi
+
+export default useApi 
