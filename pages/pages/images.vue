@@ -346,7 +346,21 @@ const handleFolderChange = () => {
   currentPage.value = 1
   fetchImages()
 }
- 
+
+// 防抖函数
+const debounce = (func, wait) => {
+  let timeout
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout)
+      func(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
+}  
+  
+  
 const handleSearch = debounce(() => {
   currentPage.value = 1
   fetchImages()
@@ -490,20 +504,7 @@ const pageNumbers = computed(() => {
  
   return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
- 
-// 防抖函数
-const debounce = (func, wait) => {
-  let timeout
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout)
-      func(...args)
-    }
-    clearTimeout(timeout)
-    timeout = setTimeout(later, wait)
-  }
-}
- 
+  
 onMounted(() => {
   fetchImages()
   fetchFolders()
