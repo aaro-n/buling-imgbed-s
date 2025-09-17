@@ -1,5 +1,5 @@
 import { toast } from '~/composables/useToast'
-
+ 
 const useApi = () => {
   const config = useRuntimeConfig()
   const { token, logout } = useAuth()
@@ -8,12 +8,12 @@ const useApi = () => {
   const baseHeaders = {
     'Content-Type': 'application/json',
   }
-
+ 
   const getAuthHeaders = () => ({
     ...baseHeaders,
     'Authorization': `Bearer ${token.value}`
   })
-
+ 
   // 添加统一的响应处理函数
   const handleResponse = async (response) => {
     if (response.status === 401) {
@@ -26,7 +26,7 @@ const useApi = () => {
     }
     return response.json()
   }
-
+ 
   return {
     // 认证相关
     async login(credentials) {
@@ -37,7 +37,7 @@ const useApi = () => {
       })
       return response.json()
     },
-
+ 
     // 列出所有图片
     async getImages(body) {
       const response = await fetch(`${config.public.apiBase}/image/list`, {
@@ -47,7 +47,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
-
+ 
     async deleteImage(files) {
       const response = await fetch(`${config.public.apiBase}/image/delete`, {
         method: 'DELETE',
@@ -56,7 +56,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
-
+ 
     async uploadImage(formData) {
       const response = await fetch(`${config.public.apiBase}/image/upload`, {
         method: 'POST',
@@ -67,7 +67,36 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
-
+ 
+    // 新增：重命名图片
+    async renameImage(filename, newName) {
+      const response = await fetch(`${config.public.apiBase}/image/rename`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ filename, newName })
+      })
+      return handleResponse(response)
+    },
+ 
+    // 新增：移动图片到文件夹
+    async moveImage(filenames, folder) {
+      const response = await fetch(`${config.public.apiBase}/image/move`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ filenames, folder })
+      })
+      return handleResponse(response)
+    },
+ 
+    // 新增：获取文件夹列表
+    async getFolders() {
+      const response = await fetch(`${config.public.apiBase}/image/folders`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      })
+      return handleResponse(response)
+    },
+ 
     // 个人资料相关
     async getProfile() {
       const response = await fetch(`${config.public.apiBase}/user/profile`, {
@@ -75,7 +104,7 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
-
+ 
     async updateProfile(profileData) {
       const response = await fetch(`${config.public.apiBase}/user/update`, {
         method: 'PUT',
@@ -86,5 +115,5 @@ const useApi = () => {
     }
   }
 }
-
-export default useApi 
+ 
+export default useApi

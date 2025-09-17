@@ -9,19 +9,21 @@ CREATE TABLE IF NOT EXISTS users (
     enable_image_optimization INTEGER NOT NULL CHECK (enable_image_optimization IN (0,1)) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
--- 创建图片表
+ 
+-- 创建图片表（添加name和folder字段）
 CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     filename TEXT NOT NULL,
+    name TEXT DEFAULT NULL,  -- 用户自定义的图片名称
+    folder TEXT DEFAULT NULL, -- 文件夹路径
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
-
+ 
 -- 插入用户数据，用户名admin，密码admin，请登陆后台修改用户名和密码
 INSERT INTO users (username, password) VALUES 
-('admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'); 
-
+('admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918');
+ 
 -- 或者到这里生成sha256密码，直接插入到数据库
 -- https://tool.chinaz.com/tools/hash.aspx

@@ -1,48 +1,48 @@
 import { isValidImageType } from '../utils/imageUtils';
-
+ 
 export const imageController = {
     async uploadImage(c) {
         try {
             const userId = c.get('jwtPayload').id;
-
+ 
             const formData = await c.req.formData();
             let imgfile = formData.get('imgfile');
-
+ 
             if (!imgfile || !isValidImageType(imgfile.type)) {
                 return c.json({ success: false, message: '请选择有效的图片文件' }, 400)
             }
-
+ 
             if (imgfile.size > 10 * 1024 * 1024) {
                 return c.json({ success: false, message: '文件大小不能超过10MB' }, 400)
             }
-
-
+ 
+ 
             // 生成原始文件名（基于时间戳和文件名）
             const originalFilename = `${Date.now()}-${imgfile.name}`;
-
+ 
             // 生成MD5哈希值
             const encoder = new TextEncoder();
             const data = encoder.encode(originalFilename);
             const hashBuffer = await crypto.subtle.digest('MD5', data);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
+ 
             // 获取文件扩展名
             const extension = imgfile.name.split('.').pop();
             const filename = `${hashHex}.${extension}`;
-
-
-            // 先保存到数据库
+ 
+ 
+            // 先保存到数据库（添加name字段，默认为原始文件名）
             await c.env.MY_DB.prepare(
-                'INSERT INTO images (user_id, filename) VALUES (?, ?)'
-            ).bind(userId, filename).run();
-
+                'INSERT INTO images (user_id, filename, name) VALUES (?, ?, ?)'
+            ).bind(userId, filename, imgfile.name).run();
+ 
             // 数据库保存成功后，再上传到R2
             await c.env.MY_BUCKET.put(filename, imgfile.stream(), {
                 httpMetadata: { contentType: imgfile.type }
             });
-
-
+ 
+ 
             return c.json({
                 success: true,
                 message: '图片上传成功',
@@ -58,19 +58,19 @@ export const imageController = {
             }, 500);
         }
     },
-
+ 
     async deleteImages(c) {
         try {
             const { files } = await c.req.json()
             const userId = c.get('jwtPayload').id;
-
+ 
             if (!Array.isArray(files)) {
                 return c.json({
                     success: false,
                     message: '无效的图片请求'
                 }, 400)
             }
-
+ 
             // 先从 R2 删除文件
             try {
                 await c.env.MY_BUCKET.delete(files);
@@ -80,12 +80,12 @@ export const imageController = {
                     message: '从存储中删除文件失败'
                 }, 500);
             }
-
+ 
             // R2 删除成功后，再从数据库中删除记录
             const stmt = await c.env.MY_DB.prepare(
                 'DELETE FROM images WHERE filename IN (' + files.map(() => '?').join(',') + ') AND user_id = ?'
             ).bind(...files, userId).run();
-
+ 
             return c.json({
                 success: true,
                 message: '图片删除成功',
@@ -100,7 +100,7 @@ export const imageController = {
             }, 500)
         }
     },
-
+ 
     async listR2Images(c) {
         try {
             const cursor = c.req.query('cursor'); // 获取分页游标
@@ -108,13 +108,13 @@ export const imageController = {
             // cursor 的值是不透明的（opaque）
             // 按页码查询在 R2 中不能直接实现，因为 R2 只支持基于 cursor 的分页。
             // 通过在数据库中维护文件列表来实现按页码查询。
-
-
+ 
+ 
             const options = {
                 limit,
                 cursor // 如果cursor存在，将从此位置开始获取
             }
-
+ 
             const list = await c.env.MY_BUCKET.list(options)
             const images = list.objects.map((obj, index) => ({
                 index: index + 1,  // 从1开始的序号
@@ -142,7 +142,7 @@ export const imageController = {
                 writeHttpMetadata: obj.writeHttpMetadata,
                 httpMetadataJSON: JSON.stringify(obj.httpMetadata || {})
             }))
-
+ 
             return c.json({
                 success: true,
                 message: '获取图片列表成功',
@@ -160,29 +160,40 @@ export const imageController = {
             }, 500)
         }
     },
-
+ 
     async listImages(c) {
         try {
             const userId = c.get('jwtPayload').id;
-            const { page = 1, pageSize = 10 } = await c.req.json();  
+            const { page = 1, pageSize = 10, folder = null } = await c.req.json();  
             const offset = (page - 1) * pageSize;
-
+ 
+            // 构建查询条件
+            let whereClause = 'WHERE user_id = ?';
+            let bindParams = [userId];
+ 
+            if (folder !== null && folder !== '') {
+                whereClause += ' AND folder = ?';
+                bindParams.push(folder);
+            }
+ 
             // 获取总数
             const { total } = await c.env.MY_DB.prepare(
-                'SELECT COUNT(*) as total FROM images WHERE user_id = ?'
-            ).bind(userId).first();
-
-            // 分页查询
+                `SELECT COUNT(*) as total FROM images ${whereClause}`
+            ).bind(...bindParams).first();
+ 
+            // 分页查询（添加name和folder字段）
             const { results } = await c.env.MY_DB.prepare(
-                'SELECT filename, created_at FROM images WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
-            ).bind(userId, pageSize, offset).all();
-
+                `SELECT filename, name, folder, created_at FROM images ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+            ).bind(...bindParams, pageSize, offset).all();
+ 
             const imageList = results.map(img => ({
                 filename: img.filename,
+                name: img.name || img.filename, // 如果没有自定义名称，使用文件名
                 url: `${img.filename}`,
+                folder: img.folder,
                 created_at: img.created_at
             }));
-
+ 
             return c.json({
                 success: true,
                 message: '获取图片列表成功',
@@ -202,5 +213,117 @@ export const imageController = {
                 message: error.message
             }, 500);
         }
+    },
+ 
+    // 新增：重命名图片
+    async renameImage(c) {
+        try {
+            const userId = c.get('jwtPayload').id;
+            const { filename, newName } = await c.req.json();
+ 
+            if (!filename || !newName) {
+                return c.json({
+                    success: false,
+                    message: '文件名和新名称不能为空'
+                }, 400);
+            }
+ 
+            // 更新数据库中的name字段，不改变filename
+            const result = await c.env.MY_DB.prepare(
+                'UPDATE images SET name = ? WHERE filename = ? AND user_id = ?'
+            ).bind(newName, filename, userId).run();
+ 
+            if (result.changes === 0) {
+                return c.json({
+                    success: false,
+                    message: '图片不存在或无权限操作'
+                }, 404);
+            }
+ 
+            return c.json({
+                success: true,
+                message: '图片重命名成功',
+                data: {
+                    filename,
+                    newName
+                }
+            });
+        } catch (error) {
+            return c.json({
+                success: false,
+                message: error.message
+            }, 500);
+        }
+    },
+ 
+    // 新增：移动图片到文件夹
+    async moveImage(c) {
+        try {
+            const userId = c.get('jwtPayload').id;
+            const { filenames, folder } = await c.req.json();
+ 
+            if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+                return c.json({
+                    success: false,
+                    message: '请选择要移动的图片'
+                }, 400);
+            }
+ 
+            // 构建SQL更新语句
+            const placeholders = filenames.map(() => '?').join(',');
+            const bindParams = [...filenames, userId, folder];
+ 
+            const result = await c.env.MY_DB.prepare(
+                `UPDATE images SET folder = ? WHERE filename IN (${placeholders}) AND user_id = ?`
+            ).bind(folder, ...bindParams).run();
+ 
+            if (result.changes === 0) {
+                return c.json({
+                    success: false,
+                    message: '图片不存在或无权限操作'
+                }, 404);
+            }
+ 
+            return c.json({
+                success: true,
+                message: `成功移动 ${result.changes} 张图片到文件夹`,
+                data: {
+                    movedCount: result.changes,
+                    folder
+                }
+            });
+        } catch (error) {
+            return c.json({
+                success: false,
+                message: error.message
+            }, 500);
+        }
+    },
+ 
+    // 新增：获取文件夹列表
+    async getFolders(c) {
+        try {
+            const userId = c.get('jwtPayload').id;
+ 
+            // 获取该用户的所有不重复的文件夹
+            const { results } = await c.env.MY_DB.prepare(
+                'SELECT DISTINCT folder FROM images WHERE user_id = ? AND folder IS NOT NULL AND folder != "" ORDER BY folder'
+            ).bind(userId).all();
+ 
+            const folders = results.map(row => row.folder);
+ 
+            return c.json({
+                success: true,
+                message: '获取文件夹列表成功',
+                data: {
+                    folders
+                }
+            });
+        } catch (error) {
+            return c.json({
+                success: false,
+                message: error.message
+            }, 500);
+        }
     }
-} 
+}
