@@ -9,9 +9,8 @@ imageRoutes.use('*', (c, next) => authMiddleware(c.env)(c, next))
 imageRoutes.post('/upload', imageController.uploadImage)
 imageRoutes.delete('/delete', imageController.deleteImages)
 imageRoutes.post('/list', imageController.listImages)
-// 添加新的路由
 imageRoutes.put('/rename', imageController.renameImage)
-imageRoutes.put('/move', imageController.moveImage)
-imageRoutes.get('/folders', imageController.getFolders)
+imageRoutes.put('/note', imageController.updateImageNote)
+imageRoutes.put('/move', imageController.moveImageToFolder)
  
 export { imageRoutes }

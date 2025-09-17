@@ -10,20 +10,30 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
  
--- 创建图片表（添加name和folder字段）
+-- 创建文件夹表
+CREATE TABLE IF NOT EXISTS folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    parent_id INTEGER DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (parent_id) REFERENCES folders(id)
+);
+ 
+-- 创建图片表（添加备注和文件夹字段）
 CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     filename TEXT NOT NULL,
-    name TEXT DEFAULT NULL,  -- 用户自定义的图片名称
-    folder TEXT DEFAULT NULL, -- 文件夹路径
+    display_name TEXT DEFAULT NULL,
+    note TEXT DEFAULT NULL,
+    folder_id INTEGER DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (folder_id) REFERENCES folders(id)
 );
  
 -- 插入用户数据，用户名admin，密码admin，请登陆后台修改用户名和密码
 INSERT INTO users (username, password) VALUES 
-('admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918');
- 
--- 或者到这里生成sha256密码，直接插入到数据库
--- https://tool.chinaz.com/tools/hash.aspx
+('admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'); 

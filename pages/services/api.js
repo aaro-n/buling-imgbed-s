@@ -14,7 +14,6 @@ const useApi = () => {
     'Authorization': `Bearer ${token.value}`
   })
  
-  // 添加统一的响应处理函数
   const handleResponse = async (response) => {
     if (response.status === 401) {
       logout()
@@ -38,7 +37,7 @@ const useApi = () => {
       return response.json()
     },
  
-    // 列出所有图片
+    // 图片相关
     async getImages(body) {
       const response = await fetch(`${config.public.apiBase}/image/list`, {
         headers: getAuthHeaders(),
@@ -68,31 +67,55 @@ const useApi = () => {
       return handleResponse(response)
     },
  
-    // 新增：重命名图片
-    async renameImage(filename, newName) {
+    async renameImage(imageId, newName) {
       const response = await fetch(`${config.public.apiBase}/image/rename`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ filename, newName })
+        body: JSON.stringify({ imageId, newName })
       })
       return handleResponse(response)
     },
  
-    // 新增：移动图片到文件夹
-    async moveImage(filenames, folder) {
+    async updateImageNote(imageId, note) {
+      const response = await fetch(`${config.public.apiBase}/image/note`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ imageId, note })
+      })
+      return handleResponse(response)
+    },
+ 
+    async moveImagesToFolder(imageIds, folderId) {
       const response = await fetch(`${config.public.apiBase}/image/move`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ filenames, folder })
+        body: JSON.stringify({ imageIds, folderId })
       })
       return handleResponse(response)
     },
  
-    // 新增：获取文件夹列表
+    // 文件夹相关
     async getFolders() {
-      const response = await fetch(`${config.public.apiBase}/image/folders`, {
-        method: 'GET',
+      const response = await fetch(`${config.public.apiBase}/folder/list`, {
         headers: getAuthHeaders()
+      })
+      return handleResponse(response)
+    },
+ 
+    async createFolder(name, parentId = null) {
+      const response = await fetch(`${config.public.apiBase}/folder/create`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name, parentId })
+      })
+      return handleResponse(response)
+    },
+ 
+    async deleteFolder(folderId) {
+      const response = await fetch(`${config.public.apiBase}/folder/delete`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ folderId })
       })
       return handleResponse(response)
     },
