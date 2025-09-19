@@ -51,7 +51,7 @@
  
     <div v-else class="content-grid">
       <!-- 文件夹显示 -->
-      <div v-for="folder in folders" :key="folder.id" class="folder-card card"
+      <div v-for="folder in currentFolders" :key="folder.id" class="folder-card card"
            @contextmenu.prevent="showFolderContextMenu($event, folder)"
            @click="navigateToFolder(folder.id)">
         <div class="folder-select">
@@ -176,7 +176,7 @@
         <div class="menu-item" @click="showFolderRenameDialog(contextMenu.item)">
           ✏️ 重命名
         </div>
-        <div class="menu-item" @click="showSubFolderDialog(contextMenu.item)">
+        <div class="menu-item" @click="showCreateSubFolderDialog(contextMenu.item)">
           📁 创建子文件夹
         </div>
         <div class="menu-item" @click="handleDeleteFolder(contextMenu.item)">
@@ -252,7 +252,7 @@
     </div>
  
     <!-- 创建子文件夹对话框 -->
-    <div v-if="showSubFolderDialog" class="dialog-overlay" @click="closeSubFolderDialog">
+    <div v-if="showCreateSubFolderDialog" class="dialog-overlay" @click="closeCreateSubFolderDialog">
       <div class="dialog" @click.stop>
         <h3>创建子文件夹</h3>
         <div class="form-group">
@@ -260,7 +260,7 @@
           <input type="text" v-model="subFolderName" placeholder="请输入子文件夹名称">
         </div>
         <div class="dialog-actions">
-          <button class="btn cancel-btn" @click="closeSubFolderDialog">取消</button>
+          <button class="btn cancel-btn" @click="closeCreateSubFolderDialog">取消</button>
           <button class="btn confirm-btn" @click="createSubFolder">创建</button>
         </div>
       </div>
@@ -298,11 +298,11 @@ const searchQuery = ref('')
 const currentFolderId = ref('')
 const folders = ref([])
  
-// 对话框
+// 对话框状态
 const showCreateFolderDialog = ref(false)
 const showMoveDialog = ref(false)
 const showRenameFolderDialog = ref(false)
-const showSubFolderDialog = ref(false)
+const showCreateSubFolderDialog = ref(false)
 const newFolderName = ref('')
 const newFolderParent = ref('')
 const targetFolderId = ref('')
@@ -339,13 +339,15 @@ const folderOptions = computed(() => {
   return flattenFolders(folders.value)
 })
  
-const displayItems = computed(() => {
-  // 只显示当前文件夹下的内容
-  const currentFolders = currentFolderId.value 
+const currentFolders = computed(() => {
+  // 只显示当前文件夹下的子文件夹
+  return currentFolderId.value 
     ? folders.value.filter(folder => folder.parentId === currentFolderId.value)
     : folders.value.filter(folder => !folder.parentId)
-  
-  return [...currentFolders, ...images.value]
+})
+ 
+const displayItems = computed(() => {
+  return [...currentFolders.value, ...images.value]
 })
  
 const contextMenuStyle = computed(() => {
@@ -658,17 +660,6 @@ const showFolderContextMenu = (event, folder) => {
   }
 }
  
-const showEmptyContextMenu = (event) => {
-  hideContextMenu()
-  contextMenu.value = {
-    visible: true,
-    x: event.clientX,
-    y: event.clientY,
-    type: 'empty',
-    item: null
-  }
-}
- 
 const hideContextMenu = () => {
   contextMenu.value.visible = false
 }
@@ -701,8 +692,6 @@ const renameFolder = async () => {
   try {
     const api = useApi()
     // 这里需要在API中添加重命名文件夹的方法
-    // const success = await api.renameFolder(selectedFolderForSub.value.id, renameFolderName.value.trim())
-    // 暂时用创建和删除模拟
     toast.showToast('文件夹重命名成功', 'success')
     await fetchFolders()
     closeRenameFolderDialog()
@@ -711,15 +700,15 @@ const renameFolder = async () => {
   }
 }
  
-const showSubFolderDialog = (folder) => {
+const showCreateSubFolderDialog = (folder) => {
   selectedFolderForSub.value = folder
   subFolderName.value = ''
-  showSubFolderDialog.value = true
+  showCreateSubFolderDialog.value = true
   hideContextMenu()
 }
  
-const closeSubFolderDialog = () => {
-  showSubFolderDialog.value = false
+const closeCreateSubFolderDialog = () => {
+  showCreateSubFolderDialog.value = false
   subFolderName.value = ''
   selectedFolderForSub.value = null
 }
@@ -736,7 +725,7 @@ const createSubFolder = async () => {
     if (success) {
       toast.showToast('子文件夹创建成功', 'success')
       await fetchFolders()
-      closeSubFolderDialog()
+      closeCreateSubFolderDialog()
     } else {
       throw new Error('创建子文件夹失败')
     }
@@ -833,7 +822,7 @@ onUnmounted(() => {
 }
  
 .content-grid {
-  display grid;
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
 }
@@ -844,7 +833,7 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
-  background: white;
+  background: whte;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1109,7 +1098,7 @@ onUnmounted(() => {
 }
  
 .close-preview {
-  position: absolute
+  position: absolute;
   top: 20px;
   right: 20px;
   color: white;
@@ -1124,7 +1113,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5)
   display: flex;
   justify-content: center;
   align-items: center;
