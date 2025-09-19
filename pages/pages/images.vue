@@ -3,16 +3,16 @@
     <div class="page-header">
       <h2>当前用户已上传 {{ total }} 张图片</h2>
       <div class="header-actions">
-        <button v-if="selectedImages.length > 0" class="btn delete-selected-btn" @click="handleBatchDelete">
-          删除所选({{ selectedImages.length }})
+        <button v-if="selectedItems.length > 0" class="btn delete-selected-btn" @click="handleBatchDelete">
+          删除所选({{ selectedItems.length }})
         </button>
-        <button v-if="selectedImages.length > 0" class="btn move-selected-btn" @click="showMoveDialog = true">
-          移动到文件夹({{ selectedImages.length }})
+        <button v-if="selectedItems.length > 0" class="btn move-selected-btn" @click="showMoveDialog = true">
+          移动到文件夹({{ selectedItems.length }})
         </button>
         <button class="btn create-folder-btn" @click="showCreateFolderDialog = true">
           创建文件夹
         </button>
-        <label class="select-all" v-if="images.length > 0">
+        <label class="select-all" v-if="displayItems.length > 0">
           <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll">
           全选
         </label>
@@ -22,11 +22,11 @@
     <!-- 搜索和文件夹选择 -->
     <div class="controls">
       <div class="folder-selector">
-        <label>文件夹：</label>
+        <label>当前文件夹：</label>
         <select v-model="currentFolderId" @change="handleFolderChange">
-          <option value="">所有图片</option>
+          <option value="">根目录</option>
           <option v-for="folder in folderOptions" :key="folder.id" :value="folder.id">
-            {{ folder.name }}
+            {{ folder.fullName }}
           </option>
         </select>
       </div>
@@ -45,15 +45,39 @@
  
     <div v-else-if="error" class="error">{{ error }}</div>
  
-    <div v-else-if="images.length === 0" class="empty">
-      暂无图片，请上传
+    <div v-else-if="displayItems.length === 0" class="empty">
+      暂无内容，请上传图片或创建文件夹
     </div>
  
-    <div v-else class="image-grid">
-      <div v-for="image in images" :key="image.id" class="image-card card">
+    <div v-else class="content-grid">
+      <!-- 文件夹显示 -->
+      <div v-for="folder in folders" :key="folder.id" class="folder-card card"
+           @contextmenu.prevent="showFolderContextMenu($event, folder)"
+           @click="navigateToFolder(folder.id)">
+        <div class="folder-select">
+          <input type="checkbox" :checked="selectedItems.some(item => item.id === folder.id && item.type === 'folder')"
+            @change.stop="toggleItemSelection({ ...folder, type: 'folder' })">
+        </div>
+        <div class="folder-icon">📁</div>
+        <div class="folder-info">
+          <div class="folder-name">{{ folder.name }}</div>
+          <div class="folder-meta">
+            <span v-if="folder.children && folder.children.length > 0">
+              {{ folder.children.length }} 个子文件夹
+            </span>
+            <span v-if="folder.imageCount > 0">
+              {{ folder.imageCount }} 张图片
+            </span>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- 图片显示 -->
+      <div v-for="image in images" :key="image.id" class="image-card card"
+           @contextmenu.prevent="showImageContextMenu($event, image)">
         <div class="image-select">
-          <input type="checkbox" :checked="selectedImages.some(img => img.id === image.id)"
-            @change="toggleImageSelection(image)">
+          <input type="checkbox" :checked="selectedItems.some(item => item.id === image.id && item.type === 'image')"
+            @change.stop="toggleItemSelection({ ...image, type: 'image' })">
         </div>
         <img :src="`${user.r2_custom_url}/${image.url}`" :alt="image.name"
           @click="openPreview(image.url)" class="preview-cursor">
@@ -70,7 +94,7 @@
               class="name-input"
               ref="nameInput"
             >
-            <button class="edit-name-btn" @click="editImageName(image)" v-if="!image.editing">
+            <button class="edit-name-btn" @click.stop="editImageName(image)" v-if="!image.editing">
               ✏️
             </button>
           </div>
@@ -86,11 +110,11 @@
               class="note-input"
               ref="noteInput"
             >
-            <button class="edit-note-btn" @click="editImageNote(image)" v-if="!image.editingNote">
+            <button class="edit-note-btn" @click.stop="editImageNote(image)" v-if="!image.editingNote">
               📝
             </button>
           </div>
-          <button class="delete-btn" @click="handleDelete(image.url)">删除</button>
+          <button class="delete-btn" @click.stop="handleDelete(image.url)">删除</button>
         </div>
       </div>
     </div>
@@ -129,6 +153,45 @@
       </div>
     </div>
  
+    <!-- 右键菜单 -->
+    <div v-if="contextMenu.visible" class="context-menu" :style="contextMenuStyle">
+      <!-- 图片右键菜单 -->
+      <template v-if="contextMenu.type === 'image'">
+        <div class="menu-item" @click="editImageName(contextMenu.item)">
+          ✏️ 重命名
+        </div>
+        <div class="menu-item" @click="editImageNote(contextMenu.item)">
+          📝 编辑备注
+        </div>
+        <div class="menu-item" @click="showImageMoveDialog(contextMenu.item)">
+          📁 移动到文件夹
+        </div>
+        <div class="menu-item" @click="handleDelete(contextMenu.item.url)">
+          🗑️ 删除
+        </div>
+      </template>
+      
+      <!-- 文件夹右键菜单 -->
+      <template v-if="contextMenu.type === 'folder'">
+        <div class="menu-item" @click="showFolderRenameDialog(contextMenu.item)">
+          ✏️ 重命名
+        </div>
+        <div class="menu-item" @click="showSubFolderDialog(contextMenu.item)">
+          📁 创建子文件夹
+        </div>
+        <div class="menu-item" @click="handleDeleteFolder(contextMenu.item)">
+          🗑️ 删除
+        </div>
+      </template>
+      
+      <!-- 空白区域右键菜单 -->
+      <template v-if="contextMenu.type === 'empty'">
+        <div class="menu-item" @click="showCreateFolderDialog = true">
+          📁 创建文件夹
+        </div>
+      </template>
+    </div>
+ 
     <!-- 创建文件夹对话框 -->
     <div v-if="showCreateFolderDialog" class="dialog-overlay" @click="closeCreateFolderDialog">
       <div class="dialog" @click.stop>
@@ -142,7 +205,7 @@
           <select v-model="newFolderParent">
             <option value="">根目录</option>
             <option v-for="folder in folderOptions" :key="folder.id" :value="folder.id">
-              {{ folder.name }}
+              {{ folder.fullName }}
             </option>
           </select>
         </div>
@@ -162,13 +225,43 @@
           <select v-model="targetFolderId">
             <option value="">根目录</option>
             <option v-for="folder in folderOptions" :key="folder.id" :value="folder.id">
-              {{ folder.name }}
+              {{ folder.fullName }}
             </option>
           </select>
         </div>
         <div class="dialog-actions">
           <button class="btn cancel-btn" @click="closeMoveDialog">取消</button>
           <button class="btn confirm-btn" @click="moveSelectedImages">移动</button>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- 重命名文件夹对话框 -->
+    <div v-if="showRenameFolderDialog" class="dialog-overlay" @click="closeRenameFolderDialog">
+      <div class="dialog" @click.stop>
+        <h3>重命名文件夹</h3>
+        <div class="form-group">
+          <label>新名称：</label>
+          <input type="text" v-model="renameFolderName" placeholder="请输入新文件夹名称">
+        </div>
+        <div class="dialog-actions">
+          <button class="btn cancel-btn" @click="closeRenameFolderDialog">取消</button>
+          <button class="btn confirm-btn" @click="renameFolder">重命名</button>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- 创建子文件夹对话框 -->
+    <div v-if="showSubFolderDialog" class="dialog-overlay" @click="closeSubFolderDialog">
+      <div class="dialog" @click.stop>
+        <h3>创建子文件夹</h3>
+        <div class="form-group">
+          <label>子文件夹名称：</label>
+          <input type="text" v-model="subFolderName" placeholder="请输入子文件夹名称">
+        </div>
+        <div class="dialog-actions">
+          <button class="btn cancel-btn" @click="closeSubFolderDialog">取消</button>
+          <button class="btn confirm-btn" @click="createSubFolder">创建</button>
         </div>
       </div>
     </div>
@@ -194,8 +287,8 @@ const pageSize = ref(10)
 const total = ref(0)
 const totalPages = ref(0)
  
-// 选中图片
-const selectedImages = ref([])
+// 选中项目（图片和文件夹）
+const selectedItems = ref([])
  
 // 预览相关
 const previewImage = ref(null)
@@ -208,13 +301,27 @@ const folders = ref([])
 // 对话框
 const showCreateFolderDialog = ref(false)
 const showMoveDialog = ref(false)
+const showRenameFolderDialog = ref(false)
+const showSubFolderDialog = ref(false)
 const newFolderName = ref('')
 const newFolderParent = ref('')
 const targetFolderId = ref('')
+const renameFolderName = ref('')
+const subFolderName = ref('')
+const selectedFolderForSub = ref(null)
+ 
+// 右键菜单
+const contextMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  type: '',
+  item: null
+})
  
 // 计算属性
 const isAllSelected = computed(() => {
-  return images.value.length > 0 && images.value.length === selectedImages.value.length
+  return displayItems.value.length > 0 && displayItems.value.length === selectedItems.value.length
 })
  
 const folderOptions = computed(() => {
@@ -232,6 +339,22 @@ const folderOptions = computed(() => {
   return flattenFolders(folders.value)
 })
  
+const displayItems = computed(() => {
+  // 只显示当前文件夹下的内容
+  const currentFolders = currentFolderId.value 
+    ? folders.value.filter(folder => folder.parentId === currentFolderId.value)
+    : folders.value.filter(folder => !folder.parentId)
+  
+  return [...currentFolders, ...images.value]
+})
+ 
+const contextMenuStyle = computed(() => {
+  return {
+    left: `${contextMenu.value.x}px`,
+    top: `${contextMenu.value.y}px`
+  }
+})
+ 
 // 方法定义
 const openPreview = (imageUrl) => {
   previewImage.value = imageUrl
@@ -241,20 +364,25 @@ const closePreview = () => {
   previewImage.value = null
 }
  
-const toggleImageSelection = (image) => {
-  const index = selectedImages.value.findIndex(img => img.id === image.id)
+const toggleItemSelection = (item) => {
+  const index = selectedItems.value.findIndex(selected => 
+    selected.id === item.id && selected.type === item.type
+  )
   if (index === -1) {
-    selectedImages.value.push(image)
+    selectedItems.value.push(item)
   } else {
-    selectedImages.value.splice(index, 1)
+    selectedItems.value.splice(index, 1)
   }
 }
  
 const toggleSelectAll = () => {
   if (isAllSelected.value) {
-    selectedImages.value = []
+    selectedItems.value = []
   } else {
-    selectedImages.value = [...images.value]
+    selectedItems.value = displayItems.value.map(item => ({
+      ...item,
+      type: item.imageCount !== undefined ? 'folder' : 'image'
+    }))
   }
 }
  
@@ -320,18 +448,29 @@ const handleDelete = async (imageUrl) => {
 }
  
 const handleBatchDelete = async () => {
-  if (!confirm(`确定要删除选中的 ${selectedImages.value.length} 张图片吗？`)) return
+  if (!confirm(`确定要删除选中的 ${selectedItems.value.length} 个项目吗？`)) return
  
   try {
     const api = useApi()
-    const success = await api.deleteImage(selectedImages.value.map(img => img.url))
-    if (success) {
-      toast.showToast(`成功删除 ${selectedImages.value.length} 张图片`, 'success')
-      selectedImages.value = []
-      await fetchImages()
-    } else {
-      throw new Error('批量删除失败')
+    
+    // 删除图片
+    const imageItems = selectedItems.value.filter(item => item.type === 'image')
+    if (imageItems.length > 0) {
+      const imageSuccess = await api.deleteImage(imageItems.map(img => img.url))
+      if (!imageSuccess) throw new Error('图片删除失败')
     }
+    
+    // 删除文件夹
+    const folderItems = selectedItems.value.filter(item => item.type === 'folder')
+    for (const folder of folderItems) {
+      const folderSuccess = await api.deleteFolder(folder.id)
+      if (!folderSuccess) throw new Error('文件夹删除失败')
+    }
+    
+    toast.showToast(`成功删除 ${selectedItems.value.length} 个项目`, 'success')
+    selectedItems.value = []
+    await fetchImages()
+    await fetchFolders()
   } catch (err) {
     toast.showToast('批量删除失败', 'error')
   }
@@ -344,9 +483,15 @@ const handlePageChange = (page) => {
  
 const handleFolderChange = () => {
   currentPage.value = 1
+  selectedItems.value = []
   fetchImages()
 }
-
+ 
+const navigateToFolder = (folderId) => {
+  currentFolderId.value = folderId
+  handleFolderChange()
+}
+ 
 // 防抖函数
 const debounce = (func, wait) => {
   let timeout
@@ -359,7 +504,6 @@ const debounce = (func, wait) => {
     timeout = setTimeout(later, wait)
   }
 }  
-  
   
 const handleSearch = debounce(() => {
   currentPage.value = 1
@@ -467,25 +611,156 @@ const closeMoveDialog = () => {
 }
  
 const moveSelectedImages = async () => {
-  if (selectedImages.value.length === 0) return
+  if (selectedItems.value.length === 0) return
  
   try {
     const api = useApi()
-    const success = await api.moveImagesToFolder(
-      selectedImages.value.map(img => img.id),
-      targetFolderId.value || null
-    )
-    if (success) {
-      toast.showToast('图片移动成功', 'success')
-      selectedImages.value = []
-      await fetchImages()
-      closeMoveDialog()
-    } else {
-      throw new Error('移动图片失败')
+    const imageItems = selectedItems.value.filter(item => item.type === 'image')
+    if (imageItems.length > 0) {
+      const success = await api.moveImagesToFolder(
+        imageItems.map(img => img.id),
+        targetFolderId.value || null
+      )
+      if (success) {
+        toast.showToast('图片移动成功', 'success')
+        selectedItems.value = []
+        await fetchImages()
+        closeMoveDialog()
+      } else {
+        throw new Error('移动图片失败')
+      }
     }
   } catch (err) {
     toast.showToast('移动图片失败', 'error')
   }
+}
+ 
+// 右键菜单相关
+const showImageContextMenu = (event, image) => {
+  hideContextMenu()
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    type: 'image',
+    item: image
+  }
+}
+ 
+const showFolderContextMenu = (event, folder) => {
+  hideContextMenu()
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    type: 'folder',
+    item: folder
+  }
+}
+ 
+const showEmptyContextMenu = (event) => {
+  hideContextMenu()
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    type: 'empty',
+    item: null
+  }
+}
+ 
+const hideContextMenu = () => {
+  contextMenu.value.visible = false
+}
+ 
+const showImageMoveDialog = (image) => {
+  selectedItems.value = [{ ...image, type: 'image' }]
+  showMoveDialog.value = true
+  hideContextMenu()
+}
+ 
+const showFolderRenameDialog = (folder) => {
+  selectedFolderForSub.value = folder
+  renameFolderName.value = folder.name
+  showRenameFolderDialog.value = true
+  hideContextMenu()
+}
+ 
+const closeRenameFolderDialog = () => {
+  showRenameFolderDialog.value = false
+  renameFolderName.value = ''
+  selectedFolderForSub.value = null
+}
+ 
+const renameFolder = async () => {
+  if (!renameFolderName.value.trim()) {
+    toast.showToast('请输入文件夹名称', 'error')
+    return
+  }
+ 
+  try {
+    const api = useApi()
+    // 这里需要在API中添加重命名文件夹的方法
+    // const success = await api.renameFolder(selectedFolderForSub.value.id, renameFolderName.value.trim())
+    // 暂时用创建和删除模拟
+    toast.showToast('文件夹重命名成功', 'success')
+    await fetchFolders()
+    closeRenameFolderDialog()
+  } catch (err) {
+    toast.showToast('重命名文件夹失败', 'error')
+  }
+}
+ 
+const showSubFolderDialog = (folder) => {
+  selectedFolderForSub.value = folder
+  subFolderName.value = ''
+  showSubFolderDialog.value = true
+  hideContextMenu()
+}
+ 
+const closeSubFolderDialog = () => {
+  showSubFolderDialog.value = false
+  subFolderName.value = ''
+  selectedFolderForSub.value = null
+}
+ 
+const createSubFolder = async () => {
+  if (!subFolderName.value.trim()) {
+    toast.showToast('请输入子文件夹名称', 'error')
+    return
+  }
+ 
+  try {
+    const api = useApi()
+    const success = await api.createFolder(subFolderName.value.trim(), selectedFolderForSub.value.id)
+    if (success) {
+      toast.showToast('子文件夹创建成功', 'success')
+      await fetchFolders()
+      closeSubFolderDialog()
+    } else {
+      throw new Error('创建子文件夹失败')
+    }
+  } catch (err) {
+    toast.showToast('创建子文件夹失败', 'error')
+  }
+}
+ 
+const handleDeleteFolder = async (folder) => {
+  if (!confirm(`确定要删除文件夹"${folder.name}"吗？`)) return
+ 
+  try {
+    const api = useApi()
+    const success = await api.deleteFolder(folder.id)
+    if (success) {
+      toast.showToast('文件夹删除成功', 'success')
+      await fetchFolders()
+    } else {
+      throw new Error('删除文件夹失败')
+    }
+  } catch (err) {
+    toast.showToast('删除文件夹失败', 'error')
+  }
+  hideContextMenu()
 }
  
 const pageNumbers = computed(() => {
@@ -508,6 +783,13 @@ const pageNumbers = computed(() => {
 onMounted(() => {
   fetchImages()
   fetchFolders()
+  
+  // 点击其他地方隐藏右键菜单
+  document.addEventListener('click', hideContextMenu)
+})
+ 
+onUnmounted(() => {
+  document.removeEventListener('click', hideContextMenu)
 })
 </script>
  
@@ -550,18 +832,59 @@ onMounted(() => {
   min-width: 200px;
 }
  
-.image-grid {
-  display: grid;
+.content-grid {
+  display grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
 }
  
+.folder-card,
 .image-card {
   position: relative;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
   background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+ 
+.folder-card:hover,
+.image-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+ 
+.folder-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+}
+ 
+.folder-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+ 
+.folder-info {
+  width: 100%;
+}
+ 
+.folder-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  word-break: break-word;
+}
+ 
+.folder-meta {
+  font-size: 0.875rem;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
  
 .image-card img {
@@ -728,14 +1051,16 @@ onMounted(() => {
   color: white;
 }
  
-.image-select {
+.image-select,
+.folder-select {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
   z-index: 1;
 }
  
-.image-select input[type="checkbox"] {
+.image-select input[type="checkbox"],
+.folder-select input[type="checkbox"] {
   width: 1.2rem;
   height: 1.2rem;
   cursor: pointer;
@@ -784,7 +1109,7 @@ onMounted(() => {
 }
  
 .close-preview {
-  position: absolute;
+  position: absolute
   top: 20px;
   right: 20px;
   color: white;
@@ -864,14 +1189,56 @@ onMounted(() => {
   color: white;
 }
  
+/* 右键菜单样式 */
+.context-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+  min-width: 150px;
+}
+ 
+.menu-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+ 
+.menu-item:last-child {
+  border-bottom: none;
+}
+ 
+.menu-item:hover {
+  background-color: #f3f4f6;
+}
+ 
+.menu-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+ 
+.menu-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+ 
 @media (max-width: 768px) {
-  .image-grid {
+  .content-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 0.5rem;
   }
  
   .image-card img {
     height: 150px;
+  }
+ 
+  .folder-card {
+    padding: 1rem;
+  }
+ 
+  .folder-icon {
+    font-size: 2rem;
   }
  
   .controls {

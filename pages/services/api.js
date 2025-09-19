@@ -127,7 +127,17 @@ const useApi = () => {
       })
       return handleResponse(response)
     },
- 
+
+    // 优化
+    async renameFolder(folderId, newName) {
+      const response = await fetch(`${config.public.apiBase}/folder/rename`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ folderId, newName })
+      })
+      return handleResponse(response)
+    },
+
     async updateProfile(profileData) {
       const response = await fetch(`${config.public.apiBase}/user/update`, {
         method: 'PUT',
