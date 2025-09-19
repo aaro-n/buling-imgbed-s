@@ -176,7 +176,7 @@
         <div class="menu-item" @click="showFolderRenameDialog(contextMenu.item)">
           ✏️ 重命名
         </div>
-        <div class="menu-item" @click="showCreateSubFolderDialog(contextMenu.item)">
+        <div class="menu-item" @click="showCreateSubFolderDialogFunc(contextMenu.item)">
           📁 创建子文件夹
         </div>
         <div class="menu-item" @click="handleDeleteFolder(contextMenu.item)">
@@ -700,7 +700,7 @@ const renameFolder = async () => {
   }
 }
  
-const showCreateSubFolderDialog = (folder) => {
+const showCreateSubFolderDialogFunc = (folder) => {
   selectedFolderForSub.value = folder
   subFolderName.value = ''
   showCreateSubFolderDialog.value = true
@@ -833,7 +833,7 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
-  background: whte;
+  backgrund: white;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -898,33 +898,16 @@ onUnmounted(() => {
 .image-name {
   font-weight: 500;
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
- 
-.image-note {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
- 
-.note-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
 }
  
 .name-input,
 .note-input {
   flex: 1;
   padding: 0.25rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #e5e7eb;
   border-radius: 4px;
-  font-size: inherit;
+  font-size: 0.9rem;
 }
  
 .edit-name-btn,
@@ -934,142 +917,101 @@ onUnmounted(() => {
   cursor: pointer;
   font-size: 1rem;
   padding: 0.25rem;
-  border-radius: 4px;
 }
  
-.edit-name-btn:hover,
-.edit-note-btn:hover {
-  background: #f3f4f6;
+.image-note {
+  font-size: 0.875rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+ 
+.note-text {
+  flex: 1;
+  word-break: break-word;
 }
  
 .delete-btn {
-  background: none;
+  background: #ef4444;
+  color: white;
   border: none;
-  color: #ef4444;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 1rem;
   border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
 }
  
 .delete-btn:hover {
-  background: #fee2e2;
+  background: #dc2626;
+}
+ 
+.folder-select,
+.image-select {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+}
+ 
+.folder-select input,
+.image-select input {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+ 
+.preview-cursor {
+  cursor: pointer;
 }
  
 .loading,
 .error,
 .empty {
   text-align: center;
-  padding: 2rem;
+  padding: 3rem;
+  font-size: 1.1rem;
+  color: #6b7280;
+}
+ 
+.error {
+  color: #ef4444;
 }
  
 .pagination {
   margin-top: 2rem;
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 1rem;
-}
- 
-.page-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-}
- 
-.page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
  
 .page-numbers {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
-}
- 
-.page-number {
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0;
-  display: flex;
   align-items: center;
-  justify-content: center;
 }
  
-.page-number.active {
-  background-color: #2563eb;
+.page-btn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+ 
+.page-btn:hover {
+  background: #f3f4f6;
+}
+ 
+.page-btn.active {
+  background: #3b82f6;
   color: white;
-  border-color: #2563eb;
+  border-color: #3b82f6;
 }
  
 .page-ellipsis {
   color: #6b7280;
-  padding: 0 0.25rem;
-}
- 
-.header-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
- 
-.delete-selected-btn,
-.move-selected-btn,
-.create-folder-btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
- 
-.delete-selected-btn {
-  background-color: #ef4444;
-  color: white;
-}
- 
-.move-selected-btn {
-  background-color: #3b82f6;
-  color: white;
-}
- 
-.create-folder-btn {
-  background-color: #10b981;
-  color: white;
-}
- 
-.image-select,
-.folder-select {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  z-index: 1;
-}
- 
-.image-select input[type="checkbox"],
-.folder-select input[type="checkbox"] {
-  width: 1.2rem;
-  height: 1.2rem;
-  cursor: pointer;
-}
- 
-.select-all {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
- 
-.select-all input[type="checkbox"] {
-  width: 1.2rem;
-  height: 1.2rem;
-  cursor: pointer;
-}
- 
-.preview-cursor {
-  cursor: zoom-in;
+  padding: 0 0.5rem;
 }
  
 .image-preview-overlay {
@@ -1078,7 +1020,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1093,18 +1035,43 @@ onUnmounted(() => {
  
 .image-preview-container img {
   max-width: 100%;
-  max-height: 90vh;
+  max-height: 100%;
   object-fit: contain;
 }
  
 .close-preview {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: -2rem;
+  right: 0;
   color: white;
-  font-size: 40px;
+  font-size: 2rem;
   cursor: pointer;
-  z-index: 1001;
+  background: none;
+  border: none;
+}
+ 
+.context-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 150px;
+}
+ 
+.menu-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+}
+ 
+.menu-item:last-child {
+  border-bottom: none;
+}
+ 
+.menu-item:hover {
+  background: #f3f4f6;
 }
  
 .dialog-overlay {
@@ -1113,7 +1080,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5)
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1129,7 +1096,7 @@ onUnmounted(() => {
 }
  
 .dialog h3 {
-  margin: 0 0 1rem 0;
+  margin-bottom: 1.5rem;
   color: #1f2937;
 }
  
@@ -1147,10 +1114,10 @@ onUnmounted(() => {
 .form-group input,
 .form-group select {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
   border-radius: 4px;
-  font-size: 1rem;
+ font-size: 1rem;
 }
  
 .dialog-actions {
@@ -1160,104 +1127,71 @@ onUnmounted(() => {
   margin-top: 1.5rem;
 }
  
-.dialog-actions .btn {
-  padding: 0.5rem 1rem;
+.btn {
+  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 1rem;
   font-weight: 500;
 }
  
 .cancel-btn {
-  background-color: #6b7280;
-  color: white;
+  background: #f3f4f6;
+  color: #374151;
+}
+ 
+.cancel-btn:hover {
+  background: #e5e7eb;
 }
  
 .confirm-btn {
-  background-color: #3b82f6;
+  background: #3b82f6;
   color: white;
 }
  
-/* 右键菜单样式 */
-.context-menu {
-  position: fixed;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
-  min-width: 150px;
+.confirm-btn:hover {
+  background: #2563eb;
 }
  
-.menu-item {
-  padding: 0.75rem 1rem;
+.delete-selected-btn {
+  background: #ef4444;
+  color: white;
+}
+ 
+.delete-selected-btn:hover {
+  background: #dc2626;
+}
+ 
+.move-selected-btn {
+  background: #f59e0b;
+  color: white;
+}
+ 
+.move-selected-btn:hover {
+  background: #d97706;
+}
+ 
+.create-folder-btn {
+  background: #10b981;
+  color: white;
+}
+ 
+.create-folder-btn:hover {
+  background: #059669;
+}
+ 
+.select-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   cursor: pointer;
-  border-bottom: 1px solid #f3f4f6;
-  transition: background-color 0.2s ease;
+  font-weight: 500;
 }
  
-.menu-item:last-child {
-  border-bottom: none;
-}
- 
-.menu-item:hover {
-  background-color: #f3f4f6;
-}
- 
-.menu-item:first-child {
-  border-radius: 6px 6px 0 0;
-}
- 
-.menu-item:last-child {
-  border-radius: 0 0 6px 6px;
-}
- 
-@media (max-width: 768px) {
-  .content-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.5rem;
-  }
- 
-  .image-card img {
-    height: 150px;
-  }
- 
-  .folder-card {
-    padding: 1rem;
-  }
- 
-  .folder-icon {
-    font-size: 2rem;
-  }
- 
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
- 
-  .folder-selector,
-  .search-box {
-    width: 100%;
-  }
- 
-  .search-input {
-    min-width: auto;
-  }
- 
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
- 
-  .header-actions {
-    width: 100%;
-    flex-wrap: wrap;
-  }
- 
-  .dialog {
-    min-width: auto;
-    margin: 1rem;
-  }
+.select-all input {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
 }
 </style>
