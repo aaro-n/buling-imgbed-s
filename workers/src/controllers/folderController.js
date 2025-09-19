@@ -58,12 +58,25 @@ export const folderController = {
                 'SELECT id, name, parent_id, created_at FROM folders WHERE user_id = ? ORDER BY parent_id NULLS FIRST, name'
             ).bind(userId).all();
  
+            // 为每个文件夹添加图片数量统计
+            const foldersWithCounts = [];
+            for (const folder of results) {
+                const { imageCount } = await c.env.MY_DB.prepare(
+                    'SELECT COUNT(*) as imageCount FROM images WHERE folder_id = ?'
+                ).bind(folder.id).first();
+                
+                foldersWithCounts.push({
+                    ...folder,
+                    imageCount: imageCount || 0,
+                    children: []
+                });
+            }
+ 
             // 构建文件夹树结构
             const folderMap = {};
             const rootFolders = [];
  
-            results.forEach(folder => {
-                folder.children = [];
+            foldersWithCounts.forEach(folder => {
                 folderMap[folder.id] = folder;
  
                 if (folder.parent_id === null) {
@@ -78,7 +91,7 @@ export const folderController = {
                 message: '获取文件夹列表成功',
                 data: {
                     folders: rootFolders,
-                    flatList: results
+                    flatList: foldersWithCounts
                 }
             });
         } catch (error) {
@@ -129,6 +142,66 @@ export const folderController = {
             return c.json({
                 success: true,
                 message: '文件夹删除成功'
+            });
+        } catch (error) {
+            return c.json({
+                success: false,
+                message: error.message
+            }, 500);
+        }
+    },
+ 
+    async renameFolder(c) {
+        try {
+            const { folderId, newName } = await c.req.json();
+            const userId = c.get('jwtPayload').id;
+ 
+            if (!newName || newName.trim() === '') {
+                return c.json({
+                    success: false,
+                    message: '文件夹名称不能为空'
+                }, 400);
+            }
+ 
+            // 检查文件夹是否存在且属于当前用户
+            const folder = await c.env.MY_DB.prepare(
+                'SELECT id, parent_id FROM folders WHERE id = ? AND user_id = ?'
+            ).bind(folderId, userId).first();
+ 
+            if (!folder) {
+                return c.json({
+                    success: false,
+                    message: '文件夹不存在或无权限'
+                }, 404);
+            }
+ 
+            // 检查同级目录下是否有重名文件夹
+            let checkQuery = 'SELECT COUNT(*) as count FROM folders WHERE user_id = ? AND name = ? AND id != ?';
+            let checkParams = [userId, newName.trim(), folderId];
+            
+            if (folder.parent_id !== null) {
+                checkQuery += ' AND parent_id = ?';
+                checkParams.push(folder.parent_id);
+            } else {
+                checkQuery += ' AND parent_id IS NULL';
+            }
+ 
+            const { count } = await c.env.MY_DB.prepare(checkQuery).bind(...checkParams).first();
+ 
+            if (count > 0) {
+                return c.json({
+                    success: false,
+                    message: '同级目录下已存在同名文件夹'
+                }, 400);
+            }
+ 
+            const result = await c.env.MY_DB.prepare(
+                'UPDATE folders SET name = ? WHERE id = ? AND user_id = ?'
+            ).bind(newName.trim(), folderId, userId).run();
+ 
+            return c.json({
+                success: true,
+                message: '文件夹重命名成功'
             });
         } catch (error) {
             return c.json({

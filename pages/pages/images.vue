@@ -328,7 +328,7 @@ const folderOptions = computed(() => {
   const flattenFolders = (folders, parentName = '') => {
     let result = []
     folders.forEach(folder => {
-      const fullName = parentName ? `${parentName} / ${folder.name}` : folder.name
+      const fullName = parentName ? `${parentName} - ${folder.name}` : folder.name
       result.push({ ...folder, fullName })
       if (folder.children && folder.children.length > 0) {
         result = result.concat(flattenFolders(folder.children, fullName))
@@ -528,11 +528,24 @@ const saveImageName = async (image) => {
     return
   }
  
+  // 获取原始文件名和扩展名
+  const originalName = image.name
+  const extension = originalName.includes('.') ? originalName.split('.').pop() : ''
+  const newBaseName = image.editName.trim()
+  
+  // 如果用户输入包含扩展名，去掉它
+  const finalName = extension && newBaseName.endsWith(`.${extension}`) 
+    ? newBaseName.slice(0, -(`.${extension}`.length)) 
+    : newBaseName
+  
+  // 组合最终文件名
+  const finalDisplayName = extension ? `${finalName}.${extension}` : finalName
+ 
   try {
     const api = useApi()
-    const success = await api.renameImage(image.id, image.editName.trim())
+    const success = await api.renameImage(image.id, finalDisplayName)
     if (success) {
-      image.name = image.editName.trim()
+      image.name = finalDisplayName
       toast.showToast('重命名成功', 'success')
     } else {
       throw new Error('重命名失败')
@@ -626,7 +639,8 @@ const moveSelectedImages = async () => {
       if (success) {
         toast.showToast('图片移动成功', 'success')
         selectedItems.value = []
-        await fetchImages()
+        await fetchImages()  // 重新获取当前文件夹的图片
+        await fetchFolders() // 重新获取文件夹列表
         closeMoveDialog()
       } else {
         throw new Error('移动图片失败')
